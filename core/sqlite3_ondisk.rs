@@ -26,7 +26,7 @@
 use crate::buffer_pool::BufferPool;
 use crate::io::{Buffer, Completion, WriteCompletion};
 use crate::pager::{Page, Pager};
-use crate::types::{OwnedRecord, OwnedValue};
+use crate::types::{LazyOwnedValue, OwnedRecord, OwnedValue};
 use crate::PageSource;
 use anyhow::{anyhow, Result};
 use log::trace;
@@ -391,16 +391,17 @@ pub fn read_record(payload: &[u8]) -> Result<OwnedRecord> {
         header_size -= nr;
     }
 
-    let mut serial_offsets = Vec::with_capacity(header_size);
+    let mut lazy_owned_values = Vec::with_capacity(header_size);
     for serial_type in &serial_types {
         let usize = serial_type_size(&payload[pos..], serial_type)?;
-        serial_offsets.push((serial_type.clone(), pos, None));
+        // serial_offsets.push((serial_type.clone(), pos, None));
+        lazy_owned_values.push(LazyOwnedValue::lazy(serial_type.clone(), pos));
         pos += usize;
     }
 
     Ok(OwnedRecord {
         raw_payload: payload.to_vec(),
-        serial_offsets,
+        lazy_owned_values,
     })
 }
 
@@ -475,12 +476,16 @@ pub fn serial_type_size(buf: &[u8], serial_type: &SerialType) -> Result<usize> {
 }
 
 pub fn read_value(owned_record: &OwnedRecord, idx: usize) -> Result<OwnedValue> {
-    let (serial_type, offset, owned_value_optional) = &owned_record.serial_offsets[idx];
-    if let Some(owned_value) = owned_value_optional {
+    let lazy_value = &owned_record.lazy_owned_values[idx];
+    let value = &lazy_value.value;
+    let serial_type = &lazy_value.serial_type;
+    let offset = lazy_value.offset;
+
+    if let Some(owned_value) = value {
         return Ok(owned_value.clone());
     }
 
-    let buf = &owned_record.raw_payload[*offset..];
+    let buf = &owned_record.raw_payload[offset..];
     let result = match serial_type {
         SerialType::Null => Ok(OwnedValue::Null),
         SerialType::UInt8 => {

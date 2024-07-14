@@ -225,17 +225,36 @@ impl<'a> Record<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct OwnedRecord {
     pub raw_payload: Vec<u8>,
-    pub serial_offsets: Vec<(SerialType, usize, Option<OwnedValue>)>,
+    pub lazy_owned_values: Vec<LazyOwnedValue>
 }
 
 impl OwnedRecord {
     pub fn new(owned_values: Vec<OwnedValue>) -> Self {
         Self {
             raw_payload: Vec::new(),
-            serial_offsets: owned_values.iter().map(|v| (SerialType::Null, 0, Some(v.clone()))).collect(),
+            lazy_owned_values: owned_values.iter().map(|v| LazyOwnedValue::new(v.clone())).collect()
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LazyOwnedValue {
+    pub value: Option<OwnedValue>,
+    pub serial_type: SerialType,
+    pub offset: usize
+}
+
+impl LazyOwnedValue {
+
+    pub fn new(owned_value: OwnedValue) -> LazyOwnedValue {
+        LazyOwnedValue { value: Some(owned_value), serial_type: SerialType::Null, offset: 0 }
+    }
+
+    pub fn lazy(serial_type: SerialType, offset: usize) -> LazyOwnedValue {
+        LazyOwnedValue { value: None, serial_type, offset }
+    }
+}
+
 
 pub enum CursorResult<T> {
     Ok(T),
