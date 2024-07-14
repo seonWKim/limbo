@@ -1,7 +1,9 @@
-use std::fmt::Display;
 use std::{cell::Ref, rc::Rc};
+use std::fmt::Display;
 
 use anyhow::Result;
+
+use crate::sqlite3_ondisk::SerialType;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value<'a> {
@@ -222,12 +224,16 @@ impl<'a> Record<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct OwnedRecord {
-    pub values: Vec<OwnedValue>,
+    pub raw_payload: Vec<u8>,
+    pub serial_offsets: Vec<(SerialType, usize, Option<OwnedValue>)>,
 }
 
 impl OwnedRecord {
-    pub fn new(values: Vec<OwnedValue>) -> Self {
-        Self { values }
+    pub fn new(owned_values: Vec<OwnedValue>) -> Self {
+        Self {
+            raw_payload: Vec::new(),
+            serial_offsets: owned_values.iter().map(|v| (SerialType::Null, 0, Some(v.clone()))).collect(),
+        }
     }
 }
 

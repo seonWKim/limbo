@@ -8,6 +8,7 @@ use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
+use crate::sqlite3_ondisk::read_value;
 
 pub type BranchOffset = usize;
 
@@ -579,7 +580,7 @@ impl Program {
                 } => {
                     let cursor = cursors.get_mut(cursor_id).unwrap();
                     if let Some(ref record) = *cursor.record()? {
-                        state.registers[*dest] = record.values[*column].clone();
+                        state.registers[*dest] = read_value(record, *column).unwrap().clone();
                     } else {
                         todo!();
                     }
@@ -934,7 +935,7 @@ fn make_owned_record(registers: &[OwnedValue], start_reg: &usize, count: &usize)
     for r in registers.iter().skip(*start_reg).take(*count) {
         values.push(r.clone())
     }
-    OwnedRecord::new(values)
+    return OwnedRecord::new(values);
 }
 
 fn trace_insn(addr: BranchOffset, insn: &Insn) {

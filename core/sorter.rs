@@ -3,6 +3,7 @@ use anyhow::Result;
 use log::trace;
 use ordered_multimap::ListOrderedMultimap;
 use std::cell::{Ref, RefCell};
+use crate::sqlite3_ondisk::read_value;
 
 pub struct Sorter {
     records: ListOrderedMultimap<String, OwnedRecord>,
@@ -66,9 +67,9 @@ impl Cursor for Sorter {
     }
 
     fn insert(&mut self, record: &OwnedRecord) -> Result<()> {
-        let key = match record.values[0] {
-            OwnedValue::Integer(i) => i.to_string(),
-            OwnedValue::Text(ref s) => s.to_string(),
+        let key = match read_value(record, 0) {
+            Ok(OwnedValue::Integer(i)) => i.to_string(),
+            Ok(OwnedValue::Text(ref s)) => s.to_string(),
             _ => todo!(),
         };
         trace!("Inserting record with key: {}", key);
