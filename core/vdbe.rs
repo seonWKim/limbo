@@ -17,6 +17,11 @@ pub type PageIdx = usize;
 
 pub enum Insn {
     // Initialize the program state and jump to the given PC.
+    Add {
+        lhs: usize,
+        rhs: usize,
+        target_pc: BranchOffset,
+    },
     Init {
         target_pc: BranchOffset,
     },
@@ -67,7 +72,7 @@ pub enum Insn {
         root_page: PageIdx,
     },
 
-    // Await for the competion of open cursor.
+    // Await for the completion of open cursor.
     OpenReadAwait,
 
     // Open a cursor for a pseudo-table that contains a single row.
@@ -331,6 +336,22 @@ impl Program {
             trace_insn(state.pc, insn);
             let mut cursors = state.cursors.borrow_mut();
             match insn {
+                Insn::Add { lhs, rhs, target_pc } => {
+                    let lhs = *lhs;
+                    let rhs = *rhs;
+                    let target_pc = *target_pc;
+                    match (&state.registers[lhs], &state.registers[rhs]) {
+                        (OwnedValue::Integer(lhs), OwnedValue::Integer(rhs)) => {
+                            state.registers[target_pc] = OwnedValue::Integer(lhs + rhs);
+                        }
+                        (OwnedValue::Float(lhs), OwnedValue::Float(rhs)) => {
+                            state.registers[target_pc] = OwnedValue::Float(lhs + rhs);
+                        }
+                        _ => {
+                            todo!();
+                        }
+                    }
+                }
                 Insn::Init { target_pc } => {
                     state.pc = *target_pc;
                 }
@@ -642,8 +663,7 @@ impl Program {
                 Insn::RealAffinity { register } => {
                     if let OwnedValue::Integer(i) = &state.registers[*register] {
                         state.registers[*register] = OwnedValue::Float(*i as f64);
-                    } else {
-                    };
+                    } else {};
                     state.pc += 1;
                 }
                 Insn::String8 { value, dest } => {
@@ -952,6 +972,15 @@ fn print_insn(addr: BranchOffset, insn: &Insn, indent: String) {
 fn insn_to_str(addr: BranchOffset, insn: &Insn, indent: String) -> String {
     let (opcode, p1, p2, p3, p4, p5, comment): (&str, i32, i32, i32, OwnedValue, u16, String) =
         match insn {
+            Insn::Add { lhs, rhs, target_pc } => (
+                "Add",
+                *lhs as i32,
+                *rhs as i32,
+                *target_pc as i32,
+                OwnedValue::Text(Rc::new("".to_string())),
+                0,
+                format!("r[{}] + r[{}] -> {}", lhs, rhs, target_pc),
+            ),
             Insn::Init { target_pc } => (
                 "Init",
                 0,

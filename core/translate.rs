@@ -525,6 +525,11 @@ fn translate_expr(
                     rhs: e2_reg,
                     target_pc: program.offset() + 3, // jump to "emit True" instruction
                 },
+                ast::Operator::Add => Insn::Add {
+                    lhs: e1_reg,
+                    rhs: e2_reg,
+                    target_pc: program.offset() + 3,
+                },
                 ast::Operator::Equals => Insn::Eq {
                     lhs: e1_reg,
                     rhs: e2_reg,
